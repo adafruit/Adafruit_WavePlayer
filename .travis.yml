@@ -19,8 +19,7 @@ install:
    - arduino --install-library "Adafruit Arcada Library"
 
 script:
-   - build_main_platforms
-   - build_cplay_platforms
+   - build_samd_platforms
 
 # Generate and deploy documentation
 after_success:
