@@ -92,6 +92,7 @@ void setup(void) {
 
 void loop(void) {
   File file;
+Serial.printf("Trying: '%s'\n", wavListPtr->filename);
   if(file = arcada.open(wavListPtr->filename, FILE_READ)) {
     uint32_t sampleRate;
     do { // Wait for prior WAV (if any) to finish playing
@@ -99,7 +100,6 @@ void loop(void) {
     } while(playing);
     wavStatus status = player.start(file, &sampleRate);
     if((status == WAV_LOAD) || (status == WAV_EOF)) {
-      if(status == WAV_LOAD) readflag = true;
       // Begin audio playback
       playing = true;
       arcada.enableSpeaker(true);
@@ -107,8 +107,8 @@ void loop(void) {
       do { // Repeat this loop until WAV_EOF or WAV_ERR_*
         if(readflag) {
           yield();
+          readflag = false; // reset flag BEFORE the read!
           status   = player.read();
-          readflag = false;
         }
       } while((status == WAV_OK) || (status == WAV_LOAD));
       // Might be EOF, might be error
@@ -119,8 +119,9 @@ void loop(void) {
       Serial.println(status);
     }
     file.close();
-    wavListPtr = wavListPtr->next; // Will loop around from end to start of list
   }
+
+  wavListPtr = wavListPtr->next; // Will loop around from end to start of list
 
   // Audio might be continuing to play at this point! It's switched
   // off in wavOutCallback() below only when final buffer is depleted.

@@ -149,11 +149,11 @@ wavStatus Adafruit_WavePlayer::start(
 
   // Determine base addresses of processed data -- type-convert to uint16_t*,
   // channel 0/1 data overlaps if file OR DAC is mono, offset by 1 if file
-  // AND DACs are stereo.
+  // AND DACs are BOTH stereo.
   sampleStep = ((process == WAV16STEREO) || (process == WAV8STEREO));
   for(uint8_t i=0; i<2; i++) {
     ab[i].processed[0] = (uint16_t *)ab[i].buffer;
-    ab[i].processed[1] = ab[i].processed[0] + sampleStep; // 0 or 1
+    ab[i].processed[1] = &ab[i].processed[0][sampleStep]; // 0 or 1
   }
   sampleStep++; // 1 or 2
 
@@ -176,12 +176,12 @@ wavStatus Adafruit_WavePlayer::start(
   wavStatus status;
   chunkBytesToGo = 0;
   chunkPadByte   = 0;
+  lastRead       = 0;
   abIdx          = 1; // read() loads into (1-abIdx)
-  status         = read(&ab[0].nSamples);
-  abIdx          = 0;
+  ab[1].nSamples = 0; // Force rollover on 1st nextSample() call
   sampleIdx      = 0;
+  status         = read(&ab[0].nSamples);
   if(numSamples) *numSamples = ab[0].nSamples;
-  nextBufReady   = 0;
 
   if(status == WAV_OK) status = WAV_LOAD;
   return status;
@@ -325,8 +325,7 @@ wavStatus Adafruit_WavePlayer::read(uint32_t *numSamples, void **store) {
         }
         break;
       case WAV16STEREO: // 16-bit stereo WAV to stereo out
-        samplesRead *= 2; // Double up samplesRead for stereo conversion
-        for(i=0; i<samplesRead; i++) {
+        for(i=(samplesRead*2)-1; i>=0; i--) { // *2 for stereo conversion
           // Sign-convert 16-bit input, shift down to DAC resolution
           ptr16out[i] = (32768UL + ptr16in[i]) >> cc;
         }
@@ -351,10 +350,9 @@ wavStatus Adafruit_WavePlayer::read(uint32_t *numSamples, void **store) {
         }
         break;
       case WAV8STEREO: // 8-bit stereo WAV to stereo out
-        samplesRead *= 2; // Double up samplesRead for stereo conversion
         // Because data is expanded (16 bits in, 16+16 bits out), work in
         // reverse so data isn't overwritten as this proceeds.
-        for(i=samplesRead-1; i>=0; i--) {
+        for(i=(samplesRead*2)-1; i>=0; i--) { // *2 for stereo conversion
           // 8-bit in, 16-bit intermediate, shift down to DAC resolution
           ptr16out[i] = (0x101 * ptr8in[i]) >> cc;
         }
