@@ -17,6 +17,7 @@ before_install:
 install:
    - arduino --install-library "SdFat - Adafruit Fork"
    - arduino --install-library "Adafruit Arcada Library"
+   - arduino --install-library "Adafruit NeoPixel"
 
 script:
    - build_samd_platforms
