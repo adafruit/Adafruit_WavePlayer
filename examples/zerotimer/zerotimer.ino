@@ -53,7 +53,7 @@ void setup(void) {
   if(!arcada.filesysBegin())    fatal("No filesystem found!", 250);
 #endif
   Serial.begin(9600);
-  while(!Serial) yield();
+  //while(!Serial) yield();
 
   analogWriteResolution(DAC_BITS); // See notes above
 
@@ -92,7 +92,7 @@ void setup(void) {
 
 void loop(void) {
   File file;
-Serial.printf("Trying: '%s'\n", wavListPtr->filename);
+  Serial.printf("Trying: '%s'\n", wavListPtr->filename);
   if(file = arcada.open(wavListPtr->filename, FILE_READ)) {
     uint32_t sampleRate;
     do { // Wait for prior WAV (if any) to finish playing

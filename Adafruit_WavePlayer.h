@@ -1,8 +1,22 @@
+/*!
+ * @file Adafruit_WavePlayer.h
+ *
+ * This is part of Adafruit's WavePlayer Arduino library.
+ * It's really more a WAV helper than a player, providing some of the
+ * lower-level essentials. The examples show how to turn this into a
+ * working player.
+ *
+ * Written by Phil "PaintYourDragon" Burgess for Adafruit Industries.
+ *
+ * BSD license, all text here must be included in any redistribution.
+ *
+ */
+
 #if !defined(_ADAFRUIT_WAVEPLAYER_H_)
 #define _ADAFRUIT_WAVEPLAYER_H_
 
 #include <Arduino.h>
-#include <Adafruit_SPIFlash.h>
+#include <SdFat.h>
 
 // Return codes used by functions in this library
 typedef enum {
@@ -51,7 +65,7 @@ class Adafruit_WavePlayer {
   struct {
     uint8_t  *buffer;           ///< Load/convert/output working space
     uint16_t *processed[2];     ///< Channel 0/1 pointer to DAC-ready data
-    uint32_t  nSamples;         ///< Number of samples in processed[]
+    uint32_t  overflow;         ///< Amt where sampleIdx rolls over
   } ab[2];                      //   A/B buffers
   int32_t     chunkBytesToGo;   ///< As-yet-unread bytes in data chunk
   uint32_t    sampleIdx;

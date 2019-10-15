@@ -1,3 +1,35 @@
+/*!
+ * @file Adafruit_WavePlayer.cpp
+ *
+ * @mainpage Adafruit WAV file helper Arduino library.
+ *
+ * @section intro_sec Introduction
+ *
+ * This is documentation for Adafruit's WavePlayer Arduino library.
+ * It's really more a WAV helper than a player, providing some of the
+ * lower-level essentials. The examples show how to turn this into a
+ * working player.
+ *
+ * Adafruit invests time and resources providing this open source code,
+ * please support Adafruit and open-source hardware by purchasing
+ * products from Adafruit!
+ *
+ * @section dependencies Dependencies
+ *
+ * This library depends on <a href="https://github.com/adafruit/SdFat">
+ * SdFat - Adafruit Fork</a> being present on your system. Please make sure
+ * you have installed the latest version before using this library.
+ *
+ * @section author Author
+ *
+ * Written by Phil "PaintYourDragon" Burgess for Adafruit Industries.
+ *
+ * @section license License
+ *
+ * BSD license, all text here must be included in any redistribution.
+ *
+ */
+
 #include "Adafruit_WavePlayer.h"
 
 #if defined(__SAMD51__)
@@ -174,14 +206,16 @@ wavStatus Adafruit_WavePlayer::start(
   // Reset counters, indices, etc. and load initial buffer
 
   wavStatus status;
+  uint32_t  nSamples;
   chunkBytesToGo = 0;
   chunkPadByte   = 0;
   lastRead       = 0;
   abIdx          = 1; // read() loads into (1-abIdx)
-  ab[1].nSamples = 0; // Force rollover on 1st nextSample() call
+  ab[1].overflow = 0; // Force rollover on 1st nextSample() call
   sampleIdx      = 0;
-  status         = read(&ab[0].nSamples);
-  if(numSamples) *numSamples = ab[0].nSamples;
+  status         = read(&nSamples);
+  ab[0].overflow = nSamples * sampleStep;
+  if(numSamples) *numSamples = nSamples;
 
   if(status == WAV_OK) status = WAV_LOAD;
   return status;
@@ -362,7 +396,7 @@ wavStatus Adafruit_WavePlayer::read(uint32_t *numSamples, void **store) {
 
   nextBufReady         = 1;
   lastRead             = (status != WAV_OK);
-  ab[loadIdx].nSamples = samplesRead;
+  ab[loadIdx].overflow = samplesRead * sampleStep;
   if(numSamples) *numSamples = samplesRead;
   if(store)      *store      = (void *)ab[loadIdx].buffer;
 
@@ -389,7 +423,7 @@ wavStatus Adafruit_WavePlayer::read(uint32_t *numSamples, void **store) {
 */
 wavStatus Adafruit_WavePlayer::nextSample(wavSample *result) {
   wavStatus status = WAV_OK;
-  if(sampleIdx >= ab[abIdx].nSamples) { // Past end of active buffer?
+  if(sampleIdx >= ab[abIdx].overflow) { // Past end of active buffer?
     if(lastRead) return WAV_EOF;        // No more data? Return EOF.
     if(nextBufReady) {                  // Next buffer loaded?
       abIdx        = 1 - abIdx;         // Switch A/B buffers
