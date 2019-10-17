@@ -71,7 +71,6 @@ void setup(void) {
   if(wavPtr) arcada.chdir(wavPath);
   else       fatal("No WAVs found!", 500);
 
-// Not ovf, but compare match?
   int dmacid[] = { // DMA trigger depends on Timer/Counter used by ZeroTimer
     TC0_DMAC_ID_OVF, TC1_DMAC_ID_OVF, TC2_DMAC_ID_OVF, TC3_DMAC_ID_OVF,
 #if defined(TC4_DMAC_ID_OVF)          // Higher TC #'s not present on all SAMDs
