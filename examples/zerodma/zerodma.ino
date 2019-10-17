@@ -35,16 +35,13 @@ Adafruit_Arcada     arcada;
 Adafruit_WavePlayer player(STEREO_OUT, DAC_BITS, BUFFER_SIZE);
 Adafruit_ZeroDMA    dma[AUDIO_CHANNELS];
 DmacDescriptor     *descriptor[AUDIO_CHANNELS];
-bool                readflag = false; // See wavOutCallback()
-bool                playing  = false;
-char               *wavPath  = "wavs";
-wavList            *wavPtr   = NULL;
-
-bool     stereoDMA      = false;
-void    *nextBuf        = NULL;
-uint32_t nextNumSamples = 0;
-File     file;
-
+char               *wavPath        = "wavs";
+wavList            *wavPtr         = NULL;
+File                file;                   // Currently-playing WAV file
+bool                playing        = false;
+bool                stereoDMA      = false; // true only if WAV & hardware are BOTH stereo
+void               *nextBuf        = NULL;
+uint32_t            nextNumSamples = 0;
 
 // Crude error handler. Prints message to Serial Monitor, blinks LED.
 void fatal(const char *message, uint16_t blinkDelay) {
@@ -74,6 +71,7 @@ void setup(void) {
   if(wavPtr) arcada.chdir(wavPath);
   else       fatal("No WAVs found!", 500);
 
+// Not ovf, but compare match?
   int dmacid[] = { // DMA trigger depends on Timer/Counter used by ZeroTimer
     TC0_DMAC_ID_OVF, TC1_DMAC_ID_OVF, TC2_DMAC_ID_OVF, TC3_DMAC_ID_OVF,
 #if defined(TC4_DMAC_ID_OVF)          // Higher TC #'s not present on all SAMDs
@@ -93,7 +91,7 @@ void setup(void) {
       NULL,                        // Dummy source pointer for now
       (void *)(&DAC->DATA[i].reg), // Dest register = DAC[i]
       0,                           // Dummy count for now
-      DMA_BEAT_SIZE_WORD,          // Always 16-bit out
+      DMA_BEAT_SIZE_HWORD,         // Always 16-bit out
       true,                        // Increment source pointer
       false,                       // Don't increment dest pointer
       DMA_ADDRESS_INCREMENT_STEP_SIZE_1, // May override later
@@ -117,11 +115,11 @@ void loop(void) {
     wavStatus status = player.start(file, &sampleRate, &nChannels, &nextNumSamples, &nextBuf);
     if((status == WAV_LOAD) || (status == WAV_EOF)) {
       // Begin audio playback
-      playing   = true;
-      stereoDMA = STEREO_OUT && (nChannels > 1);
       arcada.enableSpeaker(true);
       arcada.timerCallback(sampleRate, NULL);
-      dmaify(nextBuf, nextNumSamples, stereoDMA);
+      stereoDMA = STEREO_OUT && (nChannels > 1);
+      playing   = true;
+      issueDMA(nextBuf, nextNumSamples, stereoDMA);
       if(status == WAV_LOAD) {
         // If there's more data in the WAV file, start loading that
         // while the initial buffer plays.
@@ -141,7 +139,7 @@ void loop(void) {
 // Sets up next transfer and loads more data.
 void wavDMAcallback(Adafruit_ZeroDMA *dma) {
   if(nextBuf) {
-    dmaify(nextBuf, nextNumSamples, stereoDMA);
+    issueDMA(nextBuf, nextNumSamples, stereoDMA);
     if(player.read(&nextNumSamples, &nextBuf) != WAV_OK) {
       // No more data to load; either end of file, or error.
       // Set nextBuf to NULL to indicate no buffer-switch on
@@ -169,8 +167,9 @@ void wavDMAcallback(Adafruit_ZeroDMA *dma) {
 }
 
 // Set up and initiate next DMA transfer
-void dmaify(void *buf, uint16_t count, bool stereo) {
+void issueDMA(void *buf, uint16_t count, bool stereo) {
   if(buf && count) {
+    player.swapBuffers();
     uint8_t i;
     for(i=0; i<AUDIO_CHANNELS; i++) {
       descriptor[i]->BTCNT.reg = count;
@@ -178,18 +177,17 @@ void dmaify(void *buf, uint16_t count, bool stereo) {
         // If stereo file and stereo out, samples in memory alternate left/right.
         // Increment source address 4 bytes for each sample, and right channel is
         // offset by 2 bytes.
-        descriptor[i]->SRCADDR.reg = (uint32_t)buf + count * 4 + i * 2;
+        descriptor[i]->SRCADDR.reg         = (uint32_t)buf + count * 4 + i * 2;
         descriptor[i]->BTCTRL.bit.STEPSIZE = DMA_ADDRESS_INCREMENT_STEP_SIZE_2;
       } else {
-        descriptor[i]->SRCADDR.reg = (uint32_t)buf + count * 2;
+        descriptor[i]->SRCADDR.reg         = (uint32_t)buf + count * 2;
         descriptor[i]->BTCTRL.bit.STEPSIZE = DMA_ADDRESS_INCREMENT_STEP_SIZE_1;
       }
     }
-    // Do DMA triggers in separate loop to make sure they're closely aligned
+    // Start DMA jobs in separate loop to make sure they're closely aligned
     noInterrupts();
     for(i=0; i<AUDIO_CHANNELS; i++) dma[i].startJob();
     interrupts();
-    player.swapBuffers();
   }
 }
 
