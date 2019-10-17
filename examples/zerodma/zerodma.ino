@@ -17,7 +17,7 @@
   #define DAC_BITS   10
 #endif
 #define SPEAKER_IDLE (1 << (DAC_BITS - 1))
-#if defined(ARCADA_LEFT_AUDIO_PIN)
+#if 0 && defined(ARCADA_LEFT_AUDIO_PIN)
   #define STEREO_OUT     true
   #define AUDIO_CHANNELS 2
 #else
@@ -95,9 +95,12 @@ void setup(void) {
       false,                       // Don't increment dest pointer
       DMA_ADDRESS_INCREMENT_STEP_SIZE_1, // May override later
       DMA_STEPSEL_SRC);            // Step-select source pointer
+    // Attach transfer-done callback to the last channel.
+    // Other channel(s) require a dummy callback or the corresponding
+    // DMA job doesn't run, unsure why, but OK...
+    dma[i].setCallback((i == (AUDIO_CHANNELS-1)) ?
+      wavDMAcallback : dummyCallback);
   }
-  // Attach transfer-done callback to the last channel
-  dma[AUDIO_CHANNELS-1].setCallback(wavDMAcallback);
 }
 
 void loop(void) {
@@ -148,8 +151,6 @@ void wavDMAcallback(Adafruit_ZeroDMA *dma) {
       nextBuf        = NULL;
       nextNumSamples = 0;
       file.close();
-    } else {
-      Serial.printf("%d\n", (uint32_t)nextBuf); Serial.flush();
     }
   } else {
     // End of WAV file reached, stop timer, stop audio
@@ -189,6 +190,9 @@ void issueDMA(void *buf, uint16_t count, bool stereo) {
     interrupts();
   }
 }
+
+// Nonsense callback required for stereo output
+void dummyCallback(Adafruit_ZeroDMA *dma) { }
 
 // Scan a directory for all WAVs, build and return a linked list. Does NOT
 // filter out non-supported WAV variants, but Adafruit_WavePlayer handles
