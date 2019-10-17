@@ -102,9 +102,17 @@ static const struct {
   @param  f           Pointer to File object, ALREADY OPEN for reading.
   @param  sampleRate  Pointer to uint32_t type, where the WAV sample rate
                       will be RETURNED.
+  @param  numChannels Pointer to uint16_t type, where the number of audio
+                      channels in WAV file (not the playback hardware) will
+                      be RETURNED. Can pass NULL (or skip argument) if not
+                      used.
   @param  numSamples  Pointer to uint32_t type, where the number of WAV
                       samples initially read will be RETURNED. Can pass
                       NULL (or skip argument) if not used.
+  @param  store       Pointer to void* type, where the first batch of
+                      DAC-ready processed data was stored (within the
+                      object's buffer). Pass NULL or leave off argument
+                      if not needed.
   @return One of the wavStatus values:
           WAV_ERR_MALLOC:  Insufficient RAM (during constructor init).
           WAV_ERR_READ:    Can't read from / seek within file.
@@ -114,7 +122,8 @@ static const struct {
           WAV_EOF:         Valid WAV, all data load, no further data.
 */
 wavStatus Adafruit_WavePlayer::start(
-  File &f, uint32_t *sampleRate, uint32_t *numSamples) {
+  File &f, uint32_t *sampleRate, uint16_t *numChannels, uint32_t *numSamples,
+  void **store) {
   union {
     struct {
       char     id[4];
@@ -136,8 +145,10 @@ wavStatus Adafruit_WavePlayer::start(
 
   file = &f;
 
-  if(sampleRate) *sampleRate = 0;
-  if(numSamples) *numSamples = 0;
+  if(sampleRate)  *sampleRate  = 0;
+  if(numSamples)  *numSamples  = 0;
+  if(numChannels) *numChannels = 0;
+  if(store)       *store       = NULL;
 
   if(file->read(&buf, 12) != 12) return WAV_ERR_READ;
 
@@ -201,7 +212,8 @@ wavStatus Adafruit_WavePlayer::start(
     cc = 16 - dacRes;                       // Decimation
   }
 
-  if(sampleRate) *sampleRate = buf.fmt.sampleRate;
+  if(sampleRate)  *sampleRate  = buf.fmt.sampleRate;
+  if(numChannels) *numChannels = buf.fmt.channels;
 
   // Reset counters, indices, etc. and load initial buffer
 
@@ -213,7 +225,7 @@ wavStatus Adafruit_WavePlayer::start(
   abIdx          = 1; // read() loads into (1-abIdx)
   ab[1].overflow = 0; // Force rollover on 1st nextSample() call
   sampleIdx      = 0;
-  status         = read(&nSamples);
+  status         = read(&nSamples, store);
   ab[0].overflow = nSamples * sampleStep;
   if(numSamples) *numSamples = nSamples;
 
@@ -439,4 +451,14 @@ wavStatus Adafruit_WavePlayer::nextSample(wavSample *result) {
   sampleIdx       += sampleStep; // 1 or 2
 
   return status;
+}
+
+/*!
+  @brief  Switch active buffer index.
+  @note   Buffer swapping is done automatically by the nextSample() function,
+          but DMA-driven code (which doesn't call nextSample()) will need to
+          invoke its own buffer swaps.
+*/
+void Adafruit_WavePlayer::swapBuffers(void) {
+  abIdx = 1 - abIdx;
 }

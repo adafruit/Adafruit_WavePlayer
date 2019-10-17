@@ -56,9 +56,10 @@ class Adafruit_WavePlayer {
  public:
   Adafruit_WavePlayer(bool stereoOut, uint8_t dacBits=0, uint16_t bufferSize=1024);
   ~Adafruit_WavePlayer(void);
-  wavStatus start(File &f, uint32_t *sampleRate, uint32_t *numSamples = NULL);
+  wavStatus start(File &f, uint32_t *sampleRate, uint16_t *numChannels = NULL, uint32_t *numSamples = NULL, void **store = NULL);
   wavStatus read(uint32_t *numSamples = NULL, void **store = NULL);
   wavStatus nextSample(wavSample *result);
+  void      swapBuffers(void);
  private:
   wavStatus   nextDataChunk(void);
   File       *file;             ///< Currently-open WAV File

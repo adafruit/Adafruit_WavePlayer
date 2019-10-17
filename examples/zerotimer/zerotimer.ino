@@ -22,17 +22,17 @@
 #endif
 #define BUFFER_SIZE  2048  // Two 1K load buffers
 
+typedef struct wavList { // Linked list of WAV filenames
+  char           *filename;
+  struct wavList *next;
+};
+
 Adafruit_Arcada     arcada;
 Adafruit_WavePlayer player(STEREO_OUT, DAC_BITS, BUFFER_SIZE);
 bool                readflag = false; // See wavOutCallback()
 bool                playing  = false;
-
-const char *wav_path = "wavs";
-struct wavlist { // Linked list of WAV filenames
-  char           *filename;
-  struct wavlist *next;
-} *wavListStart = NULL, *wavListPtr = NULL;
-#define MAX_WAV_FILES 20
+char               *wavPath  = "wavs";
+wavList            *wavPtr   = NULL;
 
 // Crude error handler. Prints message to Serial Monitor, blinks LED.
 void fatal(const char *message, uint16_t blinkDelay) {
@@ -57,43 +57,16 @@ void setup(void) {
 
   analogWriteResolution(DAC_BITS); // See notes above
 
-  // Skim folder for all WAVs, make linked list
-  File            entry;
-  struct wavlist *wptr;
-  char            filename[SD_MAX_FILENAME_SIZE+1];
-  // Scan wav_path for .wav files:
-  for(int i=0; i<MAX_WAV_FILES; i++) {
-    yield();
-    entry = arcada.openFileByIndex(wav_path, i, O_READ, "wav");
-    if(!entry) break;
-    // Found one, alloc new wavlist struct, try duplicating filename
-    if((wptr = (struct wavlist *)malloc(sizeof(struct wavlist)))) {
-      entry.getName(filename, SD_MAX_FILENAME_SIZE);
-      if((wptr->filename = strdup(filename))) {
-        // Alloc'd OK, add to linked list...
-        if(wavListPtr) {           // List already started?
-          wavListPtr->next = wptr; // Point prior last item to new one
-        } else {
-          wavListStart = wptr;     // Point list head to new item
-        }
-        wavListPtr = wptr;         // Update last item to new one
-      } else {
-        free(wptr);                // Alloc failed, delete interim stuff
-      }
-    }
-    entry.close();
-  }
-  if(wavListPtr) {                   // Any items in WAV list?
-    wavListPtr->next = wavListStart; // Point last item's next to list head (list is looped)
-    wavListPtr       = wavListStart; // Update list pointer to head
-    arcada.chdir(wav_path);
-  }
+  // Build a looped list of WAV filenames...
+  wavPtr = makeWavList(wavPath, true);
+  if(wavPtr) arcada.chdir(wavPath);
+  else       fatal("No WAVs found!", 500);
 }
 
 void loop(void) {
   File file;
-  Serial.printf("Trying: '%s'\n", wavListPtr->filename);
-  if(file = arcada.open(wavListPtr->filename, FILE_READ)) {
+  Serial.printf("Trying: '%s'\n", wavPtr->filename);
+  if(file = arcada.open(wavPtr->filename, FILE_READ)) {
     uint32_t sampleRate;
     do { // Wait for prior WAV (if any) to finish playing
       yield();
@@ -121,7 +94,7 @@ void loop(void) {
     file.close();
   }
 
-  wavListPtr = wavListPtr->next; // Will loop around from end to start of list
+  wavPtr = wavPtr->next; // List loops around to start
 
   // Audio might be continuing to play at this point! It's switched
   // off in wavOutCallback() below only when final buffer is depleted.
@@ -155,4 +128,36 @@ void wavOutCallback(void) {
     arcada.enableSpeaker(false);
     playing = false;
   } // else WAV_ERR_STALL, do nothing
+}
+
+// Scan a directory for all WAVs, build and return a linked list. Does NOT
+// filter out non-supported WAV variants, but Adafruit_WavePlayer handles
+// most non-compressed WAVs now, so we're in decent shape all considered.
+// List is NOT sorted, uses the order they come out of openFileByIndex().
+wavList *makeWavList(char *path, bool loop) {
+  File     file;
+  char     filename[SD_MAX_FILENAME_SIZE+1];
+  wavList *listHead = NULL, *listTail = NULL, *wptr;
+
+  for(int i=0; file = arcada.openFileByIndex(path, i, O_READ, "wav"); i++) {
+    yield();
+    // Next WAV found, alloc new wavlist struct, try duplicating filename
+    if((wptr = (wavList *)malloc(sizeof(wavList)))) {
+      file.getName(filename, SD_MAX_FILENAME_SIZE);
+      if((wptr->filename = strdup(filename))) {
+        // Struct and filename allocated OK, add to linked list...
+        if(listTail) listTail->next = wptr;
+        else         listHead       = wptr;
+        listTail = wptr;
+      } else {
+        free(wptr); // Filename alloc failed, delete struct
+      }
+    }
+    file.close();
+  }
+
+  // If loop requested and any items in list, make list circular...
+  if(loop && listTail) listTail->next = listHead;
+
+  return listHead;
 }
