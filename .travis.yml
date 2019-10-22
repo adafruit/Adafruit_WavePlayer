@@ -37,7 +37,7 @@ install:
    - arduino --install-library "Adafruit Circuit Playground"
 
 script:
-   - build_samd_platforms
+   - build_arcada_platforms
 
 # Generate and deploy documentation
 after_success:
