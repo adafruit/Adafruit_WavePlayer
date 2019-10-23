@@ -27,7 +27,8 @@ typedef enum {
   WAV_ERR_FORMAT,  // File is not WAV format
   WAV_ERR_VARIANT, // Unsupported WAV variant
   WAV_ERR_MALLOC,  // Allocation failed
-  WAV_ERR_STALL    // Attempting to play from buffer before fully loaded
+  WAV_ERR_STALL,   // Attempting to play from buffer before fully loaded
+  WAV_ERR_NOFILE,  // No WAV file/buffer is currently loaded
 } wavStatus;
 
 // Single sample from WAV file in DAC-ready format
