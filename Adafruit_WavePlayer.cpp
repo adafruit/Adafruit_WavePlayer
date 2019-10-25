@@ -37,6 +37,7 @@
 #else
   #define DAC_BITS 10 ///< Native DAC resolution on SAMD21
 #endif
+#define SPEAKER_IDLE (1 << (DAC_BITS - 1)) ///< Analog out when not playing
 
 /*!
   @brief  Adafruit_WavePlayer constructor.
@@ -461,4 +462,66 @@ wavStatus Adafruit_WavePlayer::nextSample(wavSample *result) {
 */
 void Adafruit_WavePlayer::swapBuffers(void) {
   abIdx = 1 - abIdx;
+}
+
+/*!
+  @brief  A self-contained easy WAV player that does not use interrupts or
+          DMA. This is a BLOCKING function and does not return until the WAV
+          ends. If non-blocking (background) playing is required, other
+          functions in this library must be used along with additional code,
+          see examples (this is so the library need not be tied to specific
+          timer or DMA peripherals). THIS FUNCTION CHANGES THE analogWrite()
+          RESOLUTION USING analogWriteResolution() AND DOES NOT RESTORE IT.
+          If you need a specific analogWrite() resolution in your own code,
+          you'll need to set that up after using this function. If audio
+          hardware requires a SPEAKER-ENABLE PIN, that also must be set up
+          in your own code BEFORE calling this function. Also, playback may
+          stutter slightly, especially with high sample rate WAVs, it's just
+          an unavoidable aspect of this function not using timers or DMA.
+  @param  f         Pointer to File object, ALREADY OPEN for reading.
+  @param  leftOut   Arduino pin number for mono analog audio out
+                    OR left channel if stereo out is available.
+  @param  rightOut  Arduino pin number for right channel if stereo out is
+                    available. For mono out hardware, leave this argument
+                    off, or pass the same value as leftOut, or -1.
+  @return One of the wavStatus values:
+          WAV_OK:          File finished playing successfully.
+          WAV_ERR_MALLOC:  Insufficient RAM (during constructor init).
+          WAV_ERR_READ:    Can't read from / seek within file.
+          WAV_ERR_FORMAT:  Not a WAV file.
+          WAV_ERR_VARIANT: WAV type/compression/etc is not supported.
+*/
+wavStatus Adafruit_WavePlayer::simplePlayer(
+  File &f, int8_t leftOut, int8_t rightOut) {
+  if(rightOut < 0) rightOut = leftOut;
+  if(leftOut  < 0) leftOut  = rightOut; // Shouldn't happen
+  if(leftOut  < 0) return WAV_OK;       // No output pins, assume "done."
+
+  uint32_t  sampleRate, r2;
+  uint32_t  t, startTime;
+  wavSample sample;
+  wavStatus status = start(f, &sampleRate);
+  if((status == WAV_LOAD) || (status == WAV_EOF)) {
+    analogWriteResolution(DAC_BITS); // See notes above
+    r2        = sampleRate / 2;
+    startTime = micros() - 1000UL; // Force 1st sample to play immediately
+    for(uint32_t sampleNum = 0;; sampleNum++) {
+      status = nextSample(&sample);
+      do {
+        yield();
+      } while(((micros() - startTime + 50) / 100) <
+            ((sampleNum * 10000UL + r2) / sampleRate));
+      if(status == WAV_EOF) break;
+      analogWrite(leftOut, sample.channel0);
+      if(rightOut != leftOut) analogWrite(rightOut, sample.channel1);
+      if(status == WAV_LOAD) { // Time to load more data?
+        if((status = read()) == WAV_ERR_READ) break;
+      }
+    }
+    analogWrite(leftOut, SPEAKER_IDLE);
+    if(rightOut != leftOut) analogWrite(rightOut, SPEAKER_IDLE);
+    return WAV_OK;
+  } else {
+    return status;
+  }
 }

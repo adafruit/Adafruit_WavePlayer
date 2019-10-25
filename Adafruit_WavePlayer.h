@@ -61,6 +61,7 @@ class Adafruit_WavePlayer {
   wavStatus read(uint32_t *numSamples = NULL, void **store = NULL);
   wavStatus nextSample(wavSample *result);
   void      swapBuffers(void);
+  wavStatus simplePlayer(File &f, int8_t leftPin, int8_t rightPin = -1);
  private:
   wavStatus   nextDataChunk(void);
   File       *file;             ///< Currently-open WAV File
