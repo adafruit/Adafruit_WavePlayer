@@ -507,14 +507,13 @@ wavStatus Adafruit_WavePlayer::simplePlayer(
     startTime = micros() - 1000UL; // Force 1st sample to play immediately
     for(uint32_t sampleNum = 0;; sampleNum++) {
       status = nextSample(&sample);
-      do {
-        yield();
-      } while(((micros() - startTime + 50) / 100) <
+      while(((micros() - startTime + 50) / 100) <
             ((sampleNum * 10000UL + r2) / sampleRate));
       if(status == WAV_EOF) break;
       analogWrite(leftOut, sample.channel0);
       if(rightOut != leftOut) analogWrite(rightOut, sample.channel1);
       if(status == WAV_LOAD) { // Time to load more data?
+        yield();
         if((status = read()) == WAV_ERR_READ) break;
       }
     }

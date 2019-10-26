@@ -1,7 +1,7 @@
 // Adafruit_WavePlayer example using the simplePlayer() function.
 // This is much easier to use than other methods, but has some limitations:
 // - The function "blocks" -- other code can't run while WAV is playing.
-// - WAV playback may buzz or stutter with high sample rate WAVs.
+// - WAV playback may be slow, buzz or stutter with high sample rate WAVs.
 // - analogWriteResolution() may be changed within the library -- if you
 //   need a specific resolution following WAV playing, call that function
 //   to reset it to your needs.
@@ -22,7 +22,7 @@ typedef struct wavList { // Linked list of WAV filenames
 
 Adafruit_Arcada     arcada;
 // When using the simplePlayer() function, pass 0 for last two args:
-Adafruit_WavePlayer player(STEREO_OUT, 12, 1024);
+Adafruit_WavePlayer player(STEREO_OUT, 0, 0);
 char               *wavPath = "wavs";
 wavList            *wavPtr  = NULL;
 
