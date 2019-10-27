@@ -72,12 +72,27 @@ void setup(void) {
   else       fatal("No WAVs found!", 500);
 
   int dmacid[] = { // DMA trigger depends on Timer/Counter used by ZeroTimer
+#if defined(__SAMD51__)
     TC0_DMAC_ID_OVF, TC1_DMAC_ID_OVF, TC2_DMAC_ID_OVF, TC3_DMAC_ID_OVF,
-#if defined(TC4_DMAC_ID_OVF)          // Higher TC #'s not present on all SAMDs
+  #if defined(TC4_DMAC_ID_OVF)        // Higher TC #'s not present on all SAMDs
     TC4_DMAC_ID_OVF, TC5_DMAC_ID_OVF, // And they always come in pairs
-#endif
-#if defined(TC6_DMAC_ID_OVF)
+  #endif
+  #if defined(TC6_DMAC_ID_OVF)
     TC6_DMAC_ID_OVF, TC7_DMAC_ID_OVF
+  #endif
+#else // SAMD21
+    TCC0_DMAC_ID_OVF,
+    TCC1_DMAC_ID_OVF,
+    TCC2_DMAC_ID_OVF,
+    TC3_DMAC_ID_OVF,
+    TC4_DMAC_ID_OVF,
+    TC5_DMAC_ID_OVF,
+  #if defined(TC6_DMAC_ID_OVF)
+    TC6_DMAC_ID_OVF,
+  #endif
+  #if defined(TC7_DMAC_ID_OVF)
+    TC7_DMAC_ID_OVF
+  #endif
 #endif
   };
 
@@ -88,7 +103,11 @@ void setup(void) {
     dma[i].setAction(DMA_TRIGGER_ACTON_BEAT);
     descriptor[i] = dma[i].addDescriptor(
       NULL,                        // Dummy source pointer for now
+#if defined(__SAMD51__)
       (void *)(&DAC->DATA[i].reg), // Dest register = DAC[i]
+#else
+      (void *)(&DAC->DATA.reg),    // Only one DAC on SAMD21
+#endif
       0,                           // Dummy count for now
       DMA_BEAT_SIZE_HWORD,         // Always 16-bit out
       true,                        // Increment source pointer
