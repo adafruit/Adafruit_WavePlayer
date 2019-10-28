@@ -75,13 +75,14 @@ void loop(void) {
     if((status == WAV_LOAD) || (status == WAV_EOF)) {
       // Begin audio playback
       playing = true;
+      if(status == WAV_LOAD) readflag = true;
       arcada.enableSpeaker(true);
       arcada.timerCallback(sampleRate, wavOutCallback);
       do { // Repeat this loop until WAV_EOF or WAV_ERR_*
         if(readflag) {
-          yield();
           readflag = false; // reset flag BEFORE the read!
           status   = player.read();
+          yield();
         }
       } while((status == WAV_OK) || (status == WAV_LOAD));
       // Might be EOF, might be error
@@ -126,7 +127,7 @@ void wavOutCallback(void) {
     analogWrite(ARCADA_AUDIO_OUT      , SPEAKER_IDLE);
 #endif
     arcada.enableSpeaker(false);
-    playing = false;
+    playing = readflag = false;
   } // else WAV_ERR_STALL, do nothing
 }
 
