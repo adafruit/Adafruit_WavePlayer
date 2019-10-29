@@ -18,35 +18,41 @@
 #include <Arduino.h>
 #include <SdFat.h>
 
-// Return codes used by functions in this library
+/*!
+  @brief  Return codes used by functions in this library
+*/
 typedef enum {
-  WAV_OK,          // Successful operation; non-error
-  WAV_LOAD,        // Load more data; buffer is available
-  WAV_EOF,         // End of file reached (valid status, not error)
-  WAV_ERR_READ,    // File read error
-  WAV_ERR_FORMAT,  // File is not WAV format
-  WAV_ERR_VARIANT, // Unsupported WAV variant
-  WAV_ERR_MALLOC,  // Allocation failed
-  WAV_ERR_STALL,   // Attempting to play from buffer before fully loaded
-  WAV_ERR_NOFILE,  // No WAV file/buffer is currently loaded
+  WAV_OK,          ///< Successful operation; non-error
+  WAV_LOAD,        ///< Load more data; buffer is available
+  WAV_EOF,         ///< End of file reached (valid status, not error)
+  WAV_ERR_READ,    ///< File read error
+  WAV_ERR_FORMAT,  ///< File is not WAV format
+  WAV_ERR_VARIANT, ///< Unsupported WAV variant
+  WAV_ERR_MALLOC,  ///< Allocation failed
+  WAV_ERR_STALL,   ///< Attempting to play from buffer before fully loaded
+  WAV_ERR_NOFILE,  ///< No WAV file/buffer is currently loaded
 } wavStatus;
 
-// Single sample from WAV file in DAC-ready format
+/*!
+  @brief  Single sample from WAV file in DAC-ready format
+*/
 typedef struct {
-  unsigned channel0 : 16; // Ostensibly left channel
-  unsigned channel1 : 16; // Ostensibly right channel
+  unsigned channel0 : 16; ///< Ostensibly left channel
+  unsigned channel1 : 16; ///< Ostensibly right channel
 } wavSample;
 
-// WAV processing mode, used internally within library
+/*!
+  @brief  WAV processing mode, used internally within library
+*/
 typedef enum { 
-  WAV16MONO,   // 16-bit mono WAV to mono DAC
-  WAV16SPLIT,  // 16-bit mono WAV to stereo DACs
-  WAV16MIX,    // 16-bit stereo WAV to mono DAC
-  WAV16STEREO, // 16-bit stereo WAV to stereo DACs
-  WAV8MONO,    // 8-bit mono WAV to mono DAC
-  WAV8SPLIT,   // 8-bit mono WAV to stereo DACs
-  WAV8MIX,     // 8-bit stereo WAV to mono DAC
-  WAV8STEREO   // 8-bit stereo WAV to stereo DACs
+  WAV16MONO,   ///< 16-bit mono WAV to mono DAC
+  WAV16SPLIT,  ///< 16-bit mono WAV to stereo DACs
+  WAV16MIX,    ///< 16-bit stereo WAV to mono DAC
+  WAV16STEREO, ///< 16-bit stereo WAV to stereo DACs
+  WAV8MONO,    ///< 8-bit mono WAV to mono DAC
+  WAV8SPLIT,   ///< 8-bit mono WAV to stereo DACs
+  WAV8MIX,     ///< 8-bit stereo WAV to mono DAC
+  WAV8STEREO   ///< 8-bit stereo WAV to stereo DACs
 } wavProcess;
 
 /*!

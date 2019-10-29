@@ -279,7 +279,7 @@ wavStatus Adafruit_WavePlayer::nextDataChunk(void) {
           DAC(s).
   @param  numSamples  Pointer to uint32_t type, the number of samples
                       (not bytes) loaded and processed this pass.
-          store       Pointer to void* type, where the DAC-ready processed
+  @param  store       Pointer to void* type, where the DAC-ready processed
                       data was stored (within the object's buffer). Pass
                       NULL or leave off argument if not needed.
   @return One of the wavStatus values:
