@@ -44,7 +44,7 @@ typedef struct {
 /*!
   @brief  WAV processing mode, used internally within library
 */
-typedef enum { 
+typedef enum {
   WAV16MONO,   ///< 16-bit mono WAV to mono DAC
   WAV16SPLIT,  ///< 16-bit mono WAV to stereo DACs
   WAV16MIX,    ///< 16-bit stereo WAV to mono DAC
@@ -60,33 +60,36 @@ typedef enum {
           just the file parsing and data conversion parts.
 */
 class Adafruit_WavePlayer {
- public:
-  Adafruit_WavePlayer(bool stereoOut, uint8_t dacBits=0, uint16_t bufferSize=1024);
+public:
+  Adafruit_WavePlayer(bool stereoOut, uint8_t dacBits = 0,
+                      uint16_t bufferSize = 1024);
   ~Adafruit_WavePlayer(void);
-  wavStatus start(File &f, uint32_t *sampleRate, uint16_t *numChannels = NULL, uint32_t *numSamples = NULL, void **store = NULL);
+  wavStatus start(File &f, uint32_t *sampleRate, uint16_t *numChannels = NULL,
+                  uint32_t *numSamples = NULL, void **store = NULL);
   wavStatus read(uint32_t *numSamples = NULL, void **store = NULL);
   wavStatus nextSample(wavSample *result);
-  void      swapBuffers(void);
+  void swapBuffers(void);
   wavStatus simplePlayer(File &f, int8_t leftPin, int8_t rightPin = -1);
- private:
-  wavStatus   nextDataChunk(void);
-  File       *file;             ///< Currently-open WAV File
+
+private:
+  wavStatus nextDataChunk(void);
+  File *file; ///< Currently-open WAV File
   struct {
-    uint8_t  *buffer;           ///< Load/convert/output working space
-    uint16_t *processed[2];     ///< Channel 0/1 pointer to DAC-ready data
-    uint32_t  overflow;         ///< Amt where sampleIdx rolls over
-  } ab[2];                      //   A/B buffers
-  int32_t     chunkBytesToGo;   ///< As-yet-unread bytes in data chunk
-  uint32_t    sampleIdx;
-  wavProcess  process;          ///< WAV-to-DAC conversion method
-  uint16_t    cc;               ///< Conversion constant for 'process'
-  unsigned    dacRes       : 5; ///< DAC resolution, in bits (16 bits max)
-  unsigned    dualDacs     : 1; ///< 1 if dual DACs, 0 if single DAC
-  unsigned    chunkPadByte : 1; ///< 1 if odd number of bytes in chunk
-  unsigned    abIdx        : 1; ///< Currently-playing ab[]
-  unsigned    sampleStep   : 2; ///< Sample increment in processed[] array
-  unsigned    lastRead     : 1; ///< 1 if last read() call returned EOF
-  unsigned    nextBufReady : 1; ///< 1 if ready for A/B buffer swap
+    uint8_t *buffer;        ///< Load/convert/output working space
+    uint16_t *processed[2]; ///< Channel 0/1 pointer to DAC-ready data
+    uint32_t overflow;      ///< Amt where sampleIdx rolls over
+  } ab[2];                  ///< A/B buffers
+  int32_t chunkBytesToGo;   ///< As-yet-unread bytes in data chunk
+  uint32_t sampleIdx;
+  wavProcess process;        ///< WAV-to-DAC conversion method
+  uint16_t cc;               ///< Conversion constant for 'process'
+  unsigned dacRes : 5;       ///< DAC resolution, in bits (16 bits max)
+  unsigned dualDacs : 1;     ///< 1 if dual DACs, 0 if single DAC
+  unsigned chunkPadByte : 1; ///< 1 if odd number of bytes in chunk
+  unsigned abIdx : 1;        ///< Currently-playing ab[]
+  unsigned sampleStep : 2;   ///< Sample increment in processed[] array
+  unsigned lastRead : 1;     ///< 1 if last read() call returned EOF
+  unsigned nextBufReady : 1; ///< 1 if ready for A/B buffer swap
 };
 
 #endif // _ADAFRUIT_WAVEPLAYER_H_
